@@ -2127,10 +2127,10 @@
 
   function verifyPin() {
     var pin  = document.getElementById("pin-input").value.trim();
-    var pins = (appData && appData.parentPins) ? appData.parentPins : { mom: "1121", dad: "7590" };
-    var expected = pins[pinTarget] || (pinTarget === "mom" ? "1121" : "7590");
+    var pins = (appData && appData.parentPins) ? appData.parentPins : {};
+    var expected = pins[pinTarget];
 
-    if (pin === expected) {
+    if (expected && pin === expected) {
       // Set current user as parent
       var prof = (appData && appData.profiles) ? appData.profiles.find(function(p) {
         return p.id === pinTarget || p.name.includes(pinTarget === "mom" ? "엄마" : "아빠");
@@ -2279,10 +2279,10 @@
     return {
       profiles: [
         { id: "child_1", name: "상급종합빡빡이(용사)", role: "CHILD",  icon: "🧒", points: 7400, totalExp: 7400 },
-        { id: "mom",     name: "엄마 (길드마스터)",    role: "PARENT", icon: "👩", pin: "1121" },
-        { id: "dad",     name: "아빠 (대마법사)",      role: "PARENT", icon: "👨", pin: "7590" }
+        { id: "mom",     name: "엄마 (길드마스터)",    role: "PARENT", icon: "👩" },
+        { id: "dad",     name: "아빠 (대마법사)",      role: "PARENT", icon: "👨" }
       ],
-      parentPins: { mom: "1121", dad: "7590" },
+      parentPins: {},
       child: {
         id: "child_1", name: "상급종합빡빡이(용사)", icon: "🧒",
         level: 3, title: "⭐ 든든한 퀘스트 챔피언",

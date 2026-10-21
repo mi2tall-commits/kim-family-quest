@@ -16,10 +16,6 @@ const XP_PER_LEVEL   = 2500;
 
 function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) ? e.parameter.action : "";
-  if (action === "initDatabase") {
-    return ContentService.createTextOutput(JSON.stringify(initDatabase()))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
   if (action === "getAppData" || (e && e.parameter && (e.parameter.api === "true" || e.parameter.format === "json"))) {
     return ContentService.createTextOutput(JSON.stringify(getAppData()))
       .setMimeType(ContentService.MimeType.JSON);
@@ -42,9 +38,7 @@ function doPost(e) {
     var data = payload.data || payload;
     var result = { success: false, error: "알 수 없는 요청입니다." };
 
-    if (action === "initDatabase") {
-      result = initDatabase();
-    } else if (action === "getAppData") {
+    if (action === "getAppData") {
       result = getAppData();
     } else if (action === "completeQuest") {
       result = completeQuest(data);
@@ -152,6 +146,11 @@ function cleanIcon(icon, defaultIcon) {
 
 function initDatabase() {
   try {
+    // 편집기에서 소유자가 직접 실행할 때만 허용 (웹앱/google.script.run 호출 차단)
+    var activeEmail = Session.getActiveUser().getEmail();
+    if (!activeEmail || activeEmail !== Session.getEffectiveUser().getEmail()) {
+      return { success: false, error: "initDatabase는 Apps Script 편집기에서만 실행할 수 있습니다." };
+    }
     var ss = getSS();
 
     // 1. Users 시트 초기화 (포인트 0, 다준용사)
@@ -362,11 +361,11 @@ function getAppData() {
 
     var pendingReviews = logList.filter(function(l) { return l.status === "PENDING"; });
 
-    var parentPins = { "mom": "1234", "dad": "1234" };
+    var parentPins = {};
     profiles.filter(function(p) { return p.role === "PARENT"; }).forEach(function(p) {
       if (p.pin) parentPins[p.id] = p.pin;
-      if (p.name.includes("엄마") || p.id === "mom") parentPins["mom"] = p.pin || "1234";
-      if (p.name.includes("아빠") || p.id === "dad") parentPins["dad"] = p.pin || "1234";
+      if (p.pin && (p.name.includes("엄마") || p.id === "mom")) parentPins["mom"] = p.pin;
+      if (p.pin && (p.name.includes("아빠") || p.id === "dad")) parentPins["dad"] = p.pin;
     });
 
     return {
@@ -625,10 +624,10 @@ function getFallbackData() {
   return {
     profiles: [
       { id: "child_1", name: "다준용사 (기사)", role: "CHILD", pin: "", points: 0, totalExp: 0, icon: "🧒" },
-      { id: "mom", name: "엄마 (길드마스터)", role: "PARENT", pin: "1234", points: 0, totalExp: 0, icon: "👩" },
-      { id: "dad", name: "아빠 (대마법사)", role: "PARENT", pin: "1234", points: 0, totalExp: 0, icon: "👨" }
+      { id: "mom", name: "엄마 (길드마스터)", role: "PARENT", pin: "", points: 0, totalExp: 0, icon: "👩" },
+      { id: "dad", name: "아빠 (대마법사)", role: "PARENT", pin: "", points: 0, totalExp: 0, icon: "👨" }
     ],
-    parentPins: { mom: "1234", dad: "1234" },
+    parentPins: {},
     child: {
       id: "child_1", name: "다준용사 (기사)", icon: "🧒",
       level: 1, title: "🌱 새내기 견습 모험가",
