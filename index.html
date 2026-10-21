@@ -1669,9 +1669,9 @@
       var catColor = cat === "주간" ? "bg-violet-500/20 text-violet-300 border border-violet-500/50"
                    : cat === "특별" ? "bg-rose-500/20 text-rose-300 border border-rose-500/50"
                    : "bg-blue-500/20 text-blue-300 border border-blue-500/50";
-      return '<div onclick="openQuestModal(\'' + esc(q.id) + '\')" class="tap card p-4 flex items-center justify-between hover:border-indigo-200 transition-colors">' +
+      return '<div onclick="openQuestModal(' + jsArg(q.id) + ')" class="tap card p-4 flex items-center justify-between hover:border-indigo-200 transition-colors">' +
         '<div class="flex items-center gap-3 min-w-0">' +
-          '<span class="text-2xl flex-shrink-0">' + (q.icon || "⭐") + '</span>' +
+          '<span class="text-2xl flex-shrink-0">' + esc(q.icon || "⭐") + '</span>' +
           '<div class="min-w-0">' +
             '<div class="flex items-center gap-1.5 flex-wrap">' +
               '<h4 class="font-extrabold text-sm text-white">' + esc(q.title) + '</h4>' +
@@ -1701,12 +1701,12 @@
     container.innerHTML = items.map(function(item) {
       var canBuy = balance >= item.cost;
       return '<div class="card p-4 flex items-center gap-3">' +
-        '<span class="text-3xl flex-shrink-0">' + (item.icon || "🎁") + '</span>' +
+        '<span class="text-3xl flex-shrink-0">' + esc(item.icon || "🎁") + '</span>' +
         '<div class="flex-1 min-w-0">' +
           '<h4 class="font-extrabold text-sm text-white">' + esc(item.title) + '</h4>' +
           (item.desc ? '<p class="text-xs text-slate-400 mt-0.5">' + esc(item.desc) + '</p>' : '') +
         '</div>' +
-        '<button type="button" onclick="redeemAction(\'' + esc(item.id) + '\',\'' + esc(item.title) + '\',' + item.cost + ',\'' + esc(item.icon||'🎁') + '\')" ' +
+        '<button type="button" onclick="redeemAction(' + jsArg(item.id) + ',' + jsArg(item.title) + ',' + (Number(item.cost) || 0) + ',' + jsArg(item.icon||'🎁') + ')" ' +
           'class="tap flex-shrink-0 px-3 py-2 rounded-xl text-xs font-extrabold shadow-sm ' +
           (canBuy ? 'shop-btn-can-buy' : 'shop-btn-disabled') + '">' +
           num(item.cost) + ' P 교환' +
@@ -1733,14 +1733,14 @@
       var badgeCls = used ? "badge-used" : "badge-active";
       var badgeTxt = used ? "사용됨" : "사용 가능";
       return '<div class="card p-4 flex items-center gap-3 ' + (used ? "opacity-60" : "") + '">' +
-        '<span class="text-3xl flex-shrink-0">' + (item.icon || "🎁") + '</span>' +
+        '<span class="text-3xl flex-shrink-0">' + esc(item.icon || "🎁") + '</span>' +
         '<div class="flex-1 min-w-0">' +
           '<h4 class="font-extrabold text-sm text-white">' + esc(item.rewardTitle) + '</h4>' +
-          '<p class="text-xs text-slate-400 mt-0.5">획득: ' + (item.acquiredAt || "") + '</p>' +
+          '<p class="text-xs text-slate-400 mt-0.5">획득: ' + esc(item.acquiredAt || "") + '</p>' +
         '</div>' +
         '<div class="flex flex-col items-end gap-1.5">' +
           '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full ' + badgeCls + '">' + badgeTxt + '</span>' +
-          (!used ? '<button type="button" onclick="useItemAction(\'' + item.id + '\',\'' + esc(item.rewardTitle) + '\')" class="tap inv-use-btn">사용하기</button>' : '') +
+          (!used ? '<button type="button" onclick="useItemAction(' + jsArg(item.id) + ',' + jsArg(item.rewardTitle) + ')" class="tap inv-use-btn">사용하기</button>' : '') +
         '</div>' +
       '</div>';
     }).join("");
@@ -1785,8 +1785,8 @@
             var fid = extractId(p);
             var src = fid ? "https://lh3.googleusercontent.com/d/" + fid : p;
             return '<div class="photo-slot">' +
-              '<img src="' + src + '" referrerpolicy="no-referrer" loading="lazy" ' +
-              'onclick="openPhotoViewer(\'' + src + '\')" ' +
+              '<img src="' + esc(src) + '" referrerpolicy="no-referrer" loading="lazy" ' +
+              'onclick="openPhotoViewer(' + jsArg(src) + ')" ' +
               'onerror="if(!this.dataset.retried && \'' + fid + '\'){this.dataset.retried=\'1\';this.src=\'https://drive.google.com/thumbnail?id=' + fid + '&sz=w800\';}else{this.parentElement.style.display=\'none\';}" class="cursor-pointer">' +
             '</div>';
           }).join("") +
@@ -1801,7 +1801,7 @@
             '<span class="text-xs font-black text-emerald-600">+' + num(points) + ' P</span>' +
           '</div>' +
         '</div>' +
-        (log.date ? '<p class="text-[11px] text-slate-400 font-medium">📅 ' + log.date + '</p>' : '') +
+        (log.date ? '<p class="text-[11px] text-slate-400 font-medium">📅 ' + esc(log.date) + '</p>' : '') +
         (log.memo ? '<div class="cyber-memo-box"><strong>💬 소감:</strong> ' + esc(log.memo) + '</div>' : '') +
         photosHtml +
         (log.parentComment ? (isRejected ? '<div class="cyber-reject-box"><strong>❌ ' + esc(log.approvedBy || "부모님") + '의 반려 사유:</strong> ' + esc(log.parentComment) + '</div>' : '<div class="cyber-praise-box"><strong>👑 ' + esc(log.approvedBy || "부모님") + '의 칭찬:</strong> ' + esc(log.parentComment) + '</div>') : '') +
@@ -1857,8 +1857,8 @@
             var fid = extractId(p);
             var src = fid ? "https://lh3.googleusercontent.com/d/" + fid : p;
             return '<div class="photo-slot">' +
-              '<img src="' + src + '" referrerpolicy="no-referrer" loading="lazy" ' +
-              'onclick="openPhotoViewer(\'' + src + '\')" ' +
+              '<img src="' + esc(src) + '" referrerpolicy="no-referrer" loading="lazy" ' +
+              'onclick="openPhotoViewer(' + jsArg(src) + ')" ' +
               'onerror="if(!this.dataset.retried && \'' + fid + '\'){this.dataset.retried=\'1\';this.src=\'https://drive.google.com/thumbnail?id=' + fid + '&sz=w800\';}else{this.parentElement.style.display=\'none\';}" class="cursor-pointer">' +
             '</div>';
           }).join("") +
@@ -1872,15 +1872,15 @@
         '</div>' +
         '<div>' +
           '<h4 class="text-sm font-extrabold text-white">' + esc(title) + '</h4>' +
-          (log.date ? '<p class="text-[11px] text-slate-400 mt-0.5">📅 ' + log.date + '</p>' : '') +
+          (log.date ? '<p class="text-[11px] text-slate-400 mt-0.5">📅 ' + esc(log.date) + '</p>' : '') +
         '</div>' +
         (log.memo ? '<div class="bg-slate-50 rounded-xl p-2.5 text-xs text-slate-700 border border-slate-100"><strong>💬 아이 소감:</strong> ' + esc(log.memo) + '</div>' : '') +
         (photosHtml ? '<div>' + photosHtml + '</div>' : '') +
         '<div class="space-y-2">' +
-          '<input type="text" id="comment-' + log.id + '" placeholder="칭찬 한마디를 입력해주세요! (예: 정말 잘했어! 👏)" class="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-slate-50">' +
+          '<input type="text" id="comment-' + esc(log.id) + '" placeholder="칭찬 한마디를 입력해주세요! (예: 정말 잘했어! 👏)" class="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-slate-50">' +
           '<div class="flex gap-2">' +
-            '<button type="button" onclick="rejectAction(\'' + log.id + '\',\'' + esc(title) + '\',' + points + ',\'' + (log.userId || "child_1") + '\')" class="tap flex-1 py-2.5 bg-red-50 text-red-600 rounded-xl text-xs font-bold">❌ 반려</button>' +
-            '<button type="button" onclick="approveAction(\'' + log.id + '\',\'' + esc(title) + '\',' + points + ',\'' + (log.userId || "child_1") + '\')" class="tap flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-extrabold shadow-sm shadow-emerald-600/20">✅ 승인 (+' + num(points) + ' P)</button>' +
+            '<button type="button" onclick="rejectAction(' + jsArg(log.id) + ',' + jsArg(title) + ',' + (Number(points) || 0) + ',' + jsArg(log.userId || "child_1") + ')" class="tap flex-1 py-2.5 bg-red-50 text-red-600 rounded-xl text-xs font-bold">❌ 반려</button>' +
+            '<button type="button" onclick="approveAction(' + jsArg(log.id) + ',' + jsArg(title) + ',' + (Number(points) || 0) + ',' + jsArg(log.userId || "child_1") + ')" class="tap flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-extrabold shadow-sm shadow-emerald-600/20">✅ 승인 (+' + num(points) + ' P)</button>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -2178,9 +2178,9 @@
 
     container.innerHTML = profiles.map(function(p) {
       var isParent = p.role === "PARENT";
-      return '<button type="button" onclick="selectProfile(\'' + p.id + '\')" class="tap w-full p-3.5 rounded-2xl border border-slate-200 flex items-center justify-between hover:bg-slate-50">' +
+      return '<button type="button" onclick="selectProfile(' + jsArg(p.id) + ')" class="tap w-full p-3.5 rounded-2xl border border-slate-200 flex items-center justify-between hover:bg-slate-50">' +
         '<div class="flex items-center gap-3">' +
-          '<span class="text-2xl">' + (p.icon || "🧒") + '</span>' +
+          '<span class="text-2xl">' + esc(p.icon || "🧒") + '</span>' +
           '<div class="text-left">' +
             '<p class="text-sm font-extrabold text-white">' + esc(p.name) + '</p>' +
             '<p class="text-[11px] text-slate-400">' + (isParent ? "부모 모드 (심의 & 승인)" : "아이 모드 (퀘스트 수행)") + '</p>' +
@@ -2247,6 +2247,11 @@
     return String(s || "")
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  // onclick="fn(...)" 속성 안에 넣을 JS 문자열 인자 (따옴표 포함 안전 인코딩)
+  function jsArg(s) {
+    return esc(JSON.stringify(String(s == null ? "" : s)));
   }
 
   function extractId(str) {
@@ -2439,6 +2444,8 @@
 
   function closeDinoGameModal() {
     if (dinoGameLoopId) cancelAnimationFrame(dinoGameLoopId);
+    // 게임 도중 닫아도 티켓 1장 차감 (닫기로 티켓 없이 무한 플레이 방지)
+    if (dinoGameRunning) localStorage.setItem('dino_game_tickets', Math.max(0, getDinoTickets() - 1));
     dinoGameRunning = false;
     document.getElementById('dino-game-modal').classList.add('hidden');
     updateDinoBanner();
