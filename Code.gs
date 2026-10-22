@@ -16,10 +16,6 @@ const XP_PER_LEVEL   = 2500;
 
 function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) ? e.parameter.action : "";
-  if (action === "initDatabase") {
-    return ContentService.createTextOutput(JSON.stringify(initDatabase()))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
   if (action === "getAppData" || (e && e.parameter && (e.parameter.api === "true" || e.parameter.format === "json"))) {
     return ContentService.createTextOutput(JSON.stringify(getAppData()))
       .setMimeType(ContentService.MimeType.JSON);
@@ -42,9 +38,7 @@ function doPost(e) {
     var data = payload.data || payload;
     var result = { success: false, error: "알 수 없는 요청입니다." };
 
-    if (action === "initDatabase") {
-      result = initDatabase();
-    } else if (action === "getAppData") {
+    if (action === "getAppData") {
       result = getAppData();
     } else if (action === "completeQuest") {
       result = completeQuest(data);
@@ -152,6 +146,11 @@ function cleanIcon(icon, defaultIcon) {
 
 function initDatabase() {
   try {
+    // 편집기에서 소유자가 직접 실행할 때만 허용 (웹앱/google.script.run 호출 차단)
+    var activeEmail = Session.getActiveUser().getEmail();
+    if (!activeEmail || activeEmail !== Session.getEffectiveUser().getEmail()) {
+      return { success: false, error: "initDatabase는 Apps Script 편집기에서만 실행할 수 있습니다." };
+    }
     var ss = getSS();
 
     // 1. Users 시트 초기화 (포인트 0, 다준용사)
@@ -362,11 +361,11 @@ function getAppData() {
 
     var pendingReviews = logList.filter(function(l) { return l.status === "PENDING"; });
 
-    var parentPins = { "mom": "1234", "dad": "1234" };
+    var parentPins = {};
     profiles.filter(function(p) { return p.role === "PARENT"; }).forEach(function(p) {
       if (p.pin) parentPins[p.id] = p.pin;
-      if (p.name.includes("엄마") || p.id === "mom") parentPins["mom"] = p.pin || "1234";
-      if (p.name.includes("아빠") || p.id === "dad") parentPins["dad"] = p.pin || "1234";
+      if (p.pin && (p.name.includes("엄마") || p.id === "mom")) parentPins["mom"] = p.pin;
+      if (p.pin && (p.name.includes("아빠") || p.id === "dad")) parentPins["dad"] = p.pin;
     });
 
     return {
@@ -415,6 +414,8 @@ function completeQuest(data) {
       logsSheet.appendRow(["LogId","QuestId","QuestTitle","UserId","SubmittedAt","Status","PhotoUrl","Memo","ParentComment","ApprovedBy"]);
     }
 
+    var photoUrl = data.photoUrl || savePhotos(data.photosBase64, logId).join(",");
+
     logsSheet.appendRow([
       logId,
       data.questId || "CUSTOM",
@@ -422,7 +423,7 @@ function completeQuest(data) {
       data.userId || "child_1",
       nowStr,
       status,
-      data.photoUrl || "",
+      photoUrl,
       data.memo || "",
       "",
       ""
@@ -443,7 +444,9 @@ function completeQuest(data) {
 }
 
 function approveQuest(data) {
+  var lock = LockService.getScriptLock();
   try {
+    lock.waitLock(10000);
     var ss = getSS();
     var sheet = ss.getSheetByName("QuestLogs");
     if (!sheet) return { success: false, error: "QuestLogs 시트 없음" };
@@ -452,6 +455,11 @@ function approveQuest(data) {
     var found = -1;
     for (var i = 0; i < rows.length; i++) {
       if (String(rows[i][0]).trim() === String(data.logId).trim()) { found = i + 2; break; }
+    }
+
+    if (found === -1) return { success: false, error: "해당 퀘스트 기록을 찾을 수 없습니다.", appData: getAppData() };
+    if (String(rows[found - 2][5]).trim().toUpperCase() === "APPROVED") {
+      return { success: false, error: "이미 승인된 퀘스트입니다.", appData: getAppData() };
     }
 
     if (found !== -1) {
@@ -466,6 +474,8 @@ function approveQuest(data) {
     return { success: true, message: "✅ 승인 완료! 포인트가 지급되었습니다.", appData: getAppData() };
   } catch(err) {
     return { success: false, error: err.toString() };
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -494,7 +504,9 @@ function rejectQuest(data) {
 }
 
 function redeemReward(data) {
+  var lock = LockService.getScriptLock();
   try {
+    lock.waitLock(10000);
     var ss = getSS();
     var appData = getAppData();
     var cost = Number(data.cost) || 0;
@@ -505,7 +517,7 @@ function redeemReward(data) {
 
     var tz = Session.getScriptTimeZone();
     var now = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd HH:mm:ss");
-    var invId = "INV_" + Utilities.formatDate(new Date(), tz, "yyyyMMdd_HHmmss");
+    var invId = "INV_" + Utilities.formatDate(new Date(), tz, "yyyyMMdd_HHmmss") + "_" + Math.floor(Math.random() * 9000 + 1000);
 
     var invSheet = ss.getSheetByName("Inventory");
     if (!invSheet) {
@@ -519,6 +531,8 @@ function redeemReward(data) {
     return { success: true, message: "🎁 [" + data.title + "] 획득! 인벤토리에 추가되었습니다.", appData: getAppData() };
   } catch(err) {
     return { success: false, error: err.toString() };
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -542,6 +556,28 @@ function useInventoryItem(data) {
   } catch(err) {
     return { success: false, error: err.toString() };
   }
+}
+
+// data:image/...;base64 사진들을 업로드 폴더에 저장하고 공유 링크 목록을 반환
+function savePhotos(list, logId) {
+  if (!Array.isArray(list) || list.length === 0) return [];
+  var folder = getFolder();
+  if (!folder) return [];
+  var urls = [];
+  list.slice(0, 3).forEach(function(d, i) {
+    try {
+      var m = String(d || "").match(/^data:(image\/[\w.+-]+);base64,(.+)$/);
+      if (!m) return;
+      var ext = m[1].split("/")[1].replace("jpeg", "jpg");
+      var blob = Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], logId + "_" + (i + 1) + "." + ext);
+      var file = folder.createFile(blob);
+      try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e) {}
+      urls.push("https://drive.google.com/file/d/" + file.getId() + "/view");
+    } catch(e) {
+      Logger.log("savePhotos error: " + e);
+    }
+  });
+  return urls;
 }
 
 function updateChildPoints(ss, userId, delta) {
@@ -588,10 +624,10 @@ function getFallbackData() {
   return {
     profiles: [
       { id: "child_1", name: "다준용사 (기사)", role: "CHILD", pin: "", points: 0, totalExp: 0, icon: "🧒" },
-      { id: "mom", name: "엄마 (길드마스터)", role: "PARENT", pin: "1234", points: 0, totalExp: 0, icon: "👩" },
-      { id: "dad", name: "아빠 (대마법사)", role: "PARENT", pin: "1234", points: 0, totalExp: 0, icon: "👨" }
+      { id: "mom", name: "엄마 (길드마스터)", role: "PARENT", pin: "", points: 0, totalExp: 0, icon: "👩" },
+      { id: "dad", name: "아빠 (대마법사)", role: "PARENT", pin: "", points: 0, totalExp: 0, icon: "👨" }
     ],
-    parentPins: { mom: "1234", dad: "1234" },
+    parentPins: {},
     child: {
       id: "child_1", name: "다준용사 (기사)", icon: "🧒",
       level: 1, title: "🌱 새내기 견습 모험가",
